@@ -1,0 +1,29 @@
+# Build outputs
+build/
+cmake-build-debug/
+*.exe
+*.obj
+*.o
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Logs
+perf_log.txt
+debug_log.txt
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Recordings
+*.gif

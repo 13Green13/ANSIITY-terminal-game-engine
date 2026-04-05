@@ -1,0 +1,361 @@
+================================================================================
+ANSIITY ENGINE — DESIGN DOCUMENT
+================================================================================
+
+Header-only C++20 ANSI terminal game engine for Windows.
+Build: g++ -O2 -o build/<name>.exe main_<name>.cpp -std=c++20 -I.
+
+================================================================================
+ARCHITECTURE
+================================================================================
+
+--- ENGINE ---
+
+Engine class (singleton)
+  - Owns the game loop and delta time calculation
+  - Loop order: 
+      1. InputManager::poll()
+      2. EntityManager::update(dt)
+      3. PhysicsBody::update(dt) for all entities with physics
+      4. Fire onTileCollision() callbacks from physics tile hits
+      5. Camera::update(dt)
+      6. CollisionManager::resolve() — fires onCollision() with CollisionInfo
+      7. RenderManager::draw()
+  - Handles console setup (ANSI output, raw mode, cursor hide, WT auto-zoom)
+  - Single-syscall rendering via WriteConsoleOutputA
+
+--- MANAGERS (all singletons) ---
+
+EntityManager class (singleton)
+  - vector<Entity*> entities
+  - update(dt): calls entity->update(dt) for all entities, then sweeps dead
+  - subscribe(Entity*): adds entity to the list
+  - sweep(): removes entities where alive==false, unsubscribes them from
+    CollisionManager and RenderManager, then deletes them
+
+CollisionManager class (singleton)
+  - Builds a collision matrix (int grid[WIDTH][HEIGHT]) each frame using collider IDs
+  - After building, detects overlaps and fires entity->onCollision(other, info)
+    where CollisionInfo carries collision normal and pre-physics velocities
+  - Colliders of different entities are marked by unique numeric IDs
+  - This decouples collision from rendering — entities can share letters but
+    have different collider IDs
+  - subscribe(ANSIICollider*): registers a collider
+  - unsubscribe(ANSIICollider*): removes a collider
+  - raycast(originX, originY, dirX, dirY, maxDist, layerMask) → RayHit
+    DDA stepping through the collision grid. Returns first entity hit.
+    RayHit { bool hit, float x/y, float distance, Entity* entity }
+    layerMask=-1 hits everything, or bitmask to filter layers (1<<layer)
+
+RenderManager class (singleton)
+  - Holds the framebuffer (char screen[WIDTH][HEIGHT])
+  - subscribe(ANSIIRenderer*): registers a renderer
+  - unsubscribe(ANSIIRenderer*): removes a renderer  
+  - draw(): clears framebuffer, calls renderer->draw() for each subscriber,
+    flushes entire frame in a single write
+
+--- ENTITY ---
+
+Entity class (base class, virtual)
+  - bool alive = true
+  - ANSIIRenderer* renderer   (nullable — optional component)
+  - ANSIICollider* collider   (nullable — optional component)
+  - virtual void update(float dt)
+  - virtual void onCollision(Entity* other, const CollisionInfo& info)
+    CollisionInfo { normalX, normalY, preVelX, preVelY, otherPreVelX, otherPreVelY }
+  - virtual void onTileCollision(const TileCollision& tc)
+    TileCollision { tileX, tileY, tileId, normalX, normalY }
+    Fired automatically by engine after PhysicsBody resolves tile contacts
+  - void init(): subscribes renderer to RenderManager, collider to
+    CollisionManager, self to EntityManager (all via singleton getInstance)
+  - void destroy(): sets alive = false (managers sweep next frame)
+
+--- COMPONENTS ---
+
+ANSIIRenderer class
+  - Loads sprite from an .ansii file
+  - float x, y            (position — collider references this)
+  - int width, height
+  - Sprite data: per-cell color code + character
+  - TRANSPARENT_COLOR (0): cells with this color code are skipped during draw
+  - void draw(char screen[WIDTH][HEIGHT])
+
+  Sprite file format (.ansii):
+    Line 1: <width>x<height>
+    Remaining lines: space-separated cells, each cell is <colorcode><char>
+    Example:
+      3x2
+      34O 34O 34O
+      33B 33B 31>
+    Every cell has its own color — same symbol can have different colors
+
+ANSIICollider class
+  - int id                 (unique, auto-assigned at creation)
+  - int layer              (which layer this collider belongs to)
+  - bool layerMask[8]      (true = collide with that layer, false = ignore)
+  - ColliderShape: AABB (default) or CIRCLE
+    - AABB: shape from renderer bounds (position, width, height)
+    - CIRCLE: setCircle(radius), rasterized from center of renderer bounds
+  - forEachCell(fn): iterates all grid cells the shape occupies
+    CollisionManager uses this — shape-agnostic, easily extended
+  - subscribe/unsubscribe managed through CollisionManager singleton
+
+--- LIFECYCLE ---
+
+1. Creation:
+   Entity* e = new SomeEntity();
+   e->init();   // subscribes to all relevant managers via singletons
+
+2. Living:
+   EntityManager calls e->update(dt) each frame
+   CollisionManager detects overlaps, calls e->onCollision(other)
+   RenderManager calls e->renderer->draw() each frame
+
+3. Death:
+   e->destroy()          // sets alive = false
+   Next frame: EntityManager::sweep() sees alive==false
+     → unsubscribes from CollisionManager, RenderManager
+     → deletes the entity
+
+--- CONCRETE ENTITIES (game-specific, inherit Entity) ---
+
+Birb : Entity
+  - Has renderer + collider
+  - update(dt): gravity, velocity, clamping
+  - onCollision(): death / game over
+
+Pype : Entity
+  - Has renderer + collider
+  - update(dt): move left, destroy() if off-screen
+
+PypeSpawner : Entity
+  - No renderer, no collider
+  - update(dt): spawn timer, creates new Pype entities via init()
+
+Counter : Entity
+  - Has renderer, no collider
+  - update(): no-op (score updated externally or via event)
+
+--- PROFILER ---
+
+Profiler class (singleton)
+  - Measures per-frame timing broken down by section:
+    Input, Update, Collision, Render (all in microseconds)
+  - Logs to perf_log.txt every N frames (default: 60)
+  - Tracks rolling average and max frame time
+  - Writes summary on shutdown (avg/max frame time, compute-only FPS)
+  - Enable via Profiler::getInstance().enable() in main
+  - Zero overhead when not enabled (all methods early-return)
+
+================================================================================
+IMPLEMENTED FEATURES
+================================================================================
+
+1. Input Abstraction
+   - InputManager singleton — polls keyboard state each frame via GetAsyncKeyState
+   - isKeyHeld(vk): key is currently down
+   - isKeyPressed(vk): key went down this frame (edge detect)
+   - isKeyReleased(vk): key went up this frame
+   - Uses Windows virtual key codes (VK_SPACE, VK_LEFT, 'A', etc.)
+   - Entities read input directly in their update() — no named actions, no callbacks
+   - Engine polls InputManager before entity updates each frame
+
+2. Camera / Scrolling
+   - Camera is a plain class (NOT singleton) — multiple can coexist
+   - float x, y              (world-space position, top-left of viewport)
+   - ANSIIRenderer* target   (renderer to follow, nullable)
+   - float smoothing         (0 = instant snap, 0.9 = slow drift, lerp factor)
+   - float deadZoneW, deadZoneH (don't scroll while target is within this rect)
+   - update(dt): lerps toward target center, respects dead zone
+   - isVisible(wx, wy, w, h) → bool  (frustum check for culling)
+   - RenderManager holds Camera* activeCamera (set via setActiveCamera())
+   - World-space renderers: draw at (x - cam.x, y - cam.y)
+   - Screen-space renderers: bool screenSpace on ANSIIRenderer (default false)
+     UI/HUD entities set screenSpace=true, drawn at absolute position, no offset
+   - Entities can own cameras (e.g. player entity creates + follows its own camera)
+   - Camera swap = one pointer change on RenderManager
+   - Camera at (0,0) with no target = current behavior (backward compatible)
+
+3. Physics Body Component
+   - PhysicsBody class (optional component on Entity, like renderer/collider)
+   - velocity, gravity, grounded flag, friction
+   - Engine applies physics each frame so individual entities don't reimplement gravity
+   - Birb/Mario/enemies all just attach a PhysicsBody
+
+4. Tile / Level System
+   - TilePalette: maps tile ID (0-255) → { char, colorCode, solid }
+     Loaded from .tilepalette file
+   - TileMap: uint8_t grid of tile IDs, mapWidth × mapHeight
+     Loaded from .tilemap file
+   - TileMapRenderer : ANSIIRenderer (virtual draw override)
+     - Same draw(screenChars, screenColors, screenOccupied, camX, camY) signature
+     - Iterates only the visible rect (camera viewport) instead of _cells
+     - Looks up tile ID → palette → char + color
+     - Subscribes to RenderManager at zOrder=5 like any renderer
+     - Occlusion/z-order works identically to sprite renderers
+   - TileMapEntity : Entity
+     - Owns a TileMapRenderer, no collider (tiles don't use CollisionManager)
+     - Created at level load, one per tilemap
+   - Tile collision is separate from entity-entity collision:
+     - TileMap::isSolid(wx, wy) → bool, O(1) array lookup
+     - TileMap::setTile(x, y, id): mutate tiles at runtime (e.g. break blocks)
+     - PhysicsBody sweeps against tilemap for ground/wall resolution
+     - CollisionManager stays entity-vs-entity only, no tile overhead
+   - CollisionManager uses world-sized dynamic grid:
+     - Allocated at init (setWorldSize(w, h)) or defaults to WIDTH×HEIGHT
+     - Dirty cell tracking: only clears cells that were written instead of memset
+     - Off-screen entities still collide correctly
+   - File formats:
+     .tilepalette:
+       # ID char color solid
+       0  .  0    false
+       1  #  37   true
+       2  =  33   true
+       3  ~  34   false
+     .tilemap:
+       500x120
+       000000000000111100...
+       000000000000100100...
+
+5. Z-Ordering / Draw Order
+   - int zOrder on ANSIIRenderer (default 0)
+   - Ordered insert via std::lower_bound in subscribe() — no per-frame sort
+   - RenderManager draws high-z first (reverse iteration)
+   - Occlusion culling: bool occupancy buffer, lower-z renderers skip occupied cells
+   - Sky=0, tiles=10, enemies=20, player=30, UI=100
+
+
+
+6. Scene File Format
+   - .scene file describes a complete level/screen declaratively
+   - SceneLoader reads it, creates all entities, wires camera, loads tilemap
+   - Scene format:
+
+     # Comments start with #
+     # Key-value settings block first, then spawn list
+
+     # ---- WORLD SETUP ----
+     tilemap   levels/level1.tilemap
+     palette   levels/level1.tilepalette
+
+     # ---- CAMERA ----
+     camera_follow  player           # follow the entity tagged "player"
+     camera_smooth  0.85             # lerp smoothing
+     camera_deadzone 60 20           # dead zone WxH
+     camera_bounds  0 0 500 120      # clamp camera to world rect (minX minY maxX maxY)
+
+     # ---- ENTITY SPAWNS ----
+     # format: spawn <type> <x> <y> [key=value ...]
+     spawn player     5   100
+     spawn goomba     50  100  dir=left
+     spawn goomba     120 100  dir=right
+     spawn powerup    80  85   type=mushroom
+     spawn finish     450 80
+
+     # Spawn multiple with repeat shorthand
+     spawn coin 100 80
+     spawn coin 104 80
+     spawn coin 108 80
+
+   - SceneLoader design:
+     - EntityFactory: std::unordered_map<string, function<Entity*(float x, float y, Props&)>>
+     - Game registers factory functions at startup:
+         factory.register("player",  [](x, y, props) { return new PlayerEntity(x, y); });
+         factory.register("goomba",  [](x, y, props) { return new GoombaEntity(x, y, props); });
+     - SceneLoader::load(filepath) parses file, creates entities via factory, returns Camera
+     - Props is a simple std::unordered_map<string, string> for the key=value pairs
+     - load() auto-calls init() on every spawned entity
+     - Multiple scenes supported: load a new scene = clear all entities, load new file
+   - Keeps level design in data files, not C++ code
+   - Easy for non-programmers to tweak positions and enemy counts
+
+7. Physics Body Component
+   - PhysicsBody class (optional component on Entity, like renderer/collider)
+   - Force + acceleration model — no hardcoded gravity direction
+   - Fields:
+     - float velX, velY               (current velocity)
+     - float accelX, accelY           (persistent acceleration — gravity, wind, etc.)
+     - float dragX, dragY             (per-axis drag coefficient, 0 = no air resistance, 0.99 = heavy)
+     - float maxVelX, maxVelY         (speed cap per axis, 0 = unlimited)
+     - bool grounded                  (set by tile collision resolver)
+   - API:
+     - addForce(fx, fy): one-shot impulse (jump = addForce(0, -300))
+     - setAccel(ax, ay): persistent acceleration (gravity = setAccel(0, 500))
+     - update(dt): vel += accel * dt, vel *= (1 - drag), clamp to maxVel, pos += vel * dt
+   - The engine calls PhysicsBody::update(dt) for all entities that have one,
+     AFTER entity->update(dt) so entities can addForce/setAccel in their update
+   - Entity has: PhysicsBody* physics = nullptr (nullable, same pattern as renderer/collider)
+   - Physics is axis-independent:
+     - Down gravity: setAccel(0, 500)
+     - Up gravity: setAccel(0, -500)
+     - Side gravity: setAccel(300, 0)
+     - Zero-G: setAccel(0, 0) + no drag
+     - Water: high dragX/dragY
+     - Ice: zero dragX
+   - Tile collision resolution (runs after physics update):
+     - Separate X and Y sweeps to determine collision direction
+     - X step: move x by velX*dt, check corners against tilemap isSolid()
+       If solid: snap to tile edge, zero velX
+     - Y step: move y by velY*dt, check corners against tilemap isSolid()
+       If solid above: snap below tile, zero velY
+       If solid below: snap on top of tile, zero velY, set grounded=true
+     - grounded=false at start of each frame, set by Y resolution
+     - TileMap* pointer on PhysicsBody (set at spawn, nullable for no tile collision)
+   - Pre-physics velocity (preVelX, preVelY):
+     - Snapshot of velX/velY before tile resolution zeroes them
+     - CollisionManager reads these for entity-entity CollisionInfo
+     - Enables stomp detection: info.preVelY > 0 means falling
+   - Tile collision recording:
+     - PhysicsBody accumulates TileCollision hits during X/Y resolution
+     - Engine loop dispatches them to entity->onTileCollision(tc) after physics
+     - Enables ? block hit detection: tc.normalY > 0 && tc.tileId == 3
+
+   - Angular physics:
+     - float angle, angularVel, angularAccel, angularDrag on PhysicsBody
+     - Engine updates these each frame (vel += accel*dt, angle += vel*dt)
+     - The base renderer and collider do NOT use angle — they stay AABB
+     - This is intentional: angular state is available for extension
+     - Use case 1: Angle-driven frame selection — subclassed renderer picks
+       the nearest pre-rendered rotation frame from physics.angle
+     - Use case 2: Circular collider (rotation-invariant) — sidesteps
+       the need for rotated AABB collision entirely
+     - Use case 3: Someone subclasses ANSIICollider with SAT or a custom
+       shape that reads angle — the virtual interface supports it
+     - The engine provides the physics; extending rendering/collision
+       for rotation is a user-side override, not a core responsibility
+
+================================================================================
+GAMES
+================================================================================
+
+1. Flappy Bird (main_flappy.cpp)
+   - Birb with gravity + jump, scrolling pipes, score counter
+   - Entities: BirbEntity, PypeEntity, PypeSpawner, CounterEntity, SkyEntity
+
+2. Mario Platformer (main_mario.cpp)
+   - Side-scrolling platformer with tilemap, goombas, ? blocks, powerups
+   - Uses SceneLoader with levels/level1.scene
+   - Entities: PlayerEntity, GoombaEntity, PowerupEntity, FinishEntity
+
+3. Asteroids (main_asteroids.cpp)
+   - 8-direction ship rotation via embedded sprite frames, bullets, asteroid
+     splitting (3 sizes), wave spawner, score HUD
+   - Entities: ShipEntity, AsteroidEntity, BulletEntity, SpawnerEntity, ScoreEntity
+
+4. Water Simulation (main_water.cpp)
+   - Position-based SPH fluid (Clavet et al. 2005), up to 5000 particles
+   - Spatial hash neighbor lookup, custom FluidRenderer, cursor-driven spawning
+
+5. Crystal Caverns (main_cavern.cpp)
+   - Cave exploration with procedural 800x200 tilemap (gen_cavern.py)
+   - Jetpack movement, gem collecting, bat enemies, sticky bomb terrain destruction
+   - 18 tile types with biome gradients (gray stone -> moss/crystal -> deep red)
+   - Entities: MinerEntity, BatEntity, GemEntity, BombEntity, ExitEntity, HudEntity
+
+================================================================================
+FUTURE IDEAS
+================================================================================
+
+- Animation: multi-frame sprites with timer-driven frame advance
+- Sound: Beep() or PlaySound for basic SFX
+- Scene management: title screen / game over state machine
