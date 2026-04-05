@@ -1,0 +1,5 @@
+# Asteroids
+
+spawn ship      118  28
+spawn spawner   0    0
+spawn score_hud 2    1

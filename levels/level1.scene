@@ -1,0 +1,28 @@
+# Level 1 - Platformer Demo
+tilemap   levels/level1.tilemap
+palette   levels/level1.tilepalette
+
+# Camera: follow player horizontally, lock vertical
+camera_follow   player
+camera_smooth   0.9
+camera_deadzone 80 10000
+camera_start    0 0
+
+# Player
+spawn player    5    40
+
+# Goombas on platforms
+spawn goomba    53   40  dir=left
+spawn goomba    125  40  dir=right
+spawn goomba    255  40  dir=left
+spawn goomba    425  40  dir=left
+
+# Goombas on ground
+spawn goomba    150  40
+spawn goomba    300  40
+
+# Star powerup on mid platform
+spawn powerup   140  44
+
+# Finish flag
+spawn finish    460  50

@@ -1,0 +1,38 @@
+# Crystal Caverns Tile Palette
+#
+# The cave is dark - all air is transparent black.
+# Visual depth comes from varied wall textures and edge decorations.
+# Biome gradient: gray stone (upper) -> green moss + cyan crystal (middle) -> warm red (deep)
+#
+# ID  char  color  solid
+
+# Air
+0  .  0    false
+
+# Standard Stone (Upper Cave)
+3  #  37   true
+4  #  90   true
+5  %  37   true
+6  =  37   true
+
+# Mossy Stone (Middle Cave)
+7  #  32   true
+8  &  92   true
+
+# Crystal Stone (Middle Cave)
+9  #  36   true
+10 *  96   true
+
+# Deep Stone (Lower Cave)
+11 #  33   true
+12 #  31   true
+
+# Decorations (non-solid)
+13 v  90   false
+14 ^  90   false
+15 *  96   false
+16 *  95   false
+17 ~  34   false
+18 |  32   false
+19 ~  94   false
+20 '  94   false

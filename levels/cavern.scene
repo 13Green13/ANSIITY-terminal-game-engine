@@ -1,0 +1,99 @@
+# Crystal Caverns
+tilemap   levels/cavern.tilemap
+palette   levels/cavern.tilepalette
+
+camera_follow   miner
+camera_smooth   0
+camera_deadzone 120 40
+camera_start    0 0
+
+# Player
+spawn miner 40 38
+
+# Exit
+spawn exit_door 756 143
+
+# HUD
+spawn hud 2 2
+
+# Gems (53 total)
+spawn gem_red 206 61
+spawn gem_green 456 65
+spawn gem_red 301 172
+spawn gem_red 315 112
+spawn gem_red 295 154
+spawn gem_cyan 139 141
+spawn gem_cyan 555 189
+spawn gem_red 250 104
+spawn gem_red 500 54
+spawn gem_cyan 770 172
+spawn gem_green 557 55
+spawn gem_green 190 24
+spawn gem_red 700 101
+spawn gem_cyan 146 151
+spawn gem_green 750 101
+spawn gem_red 280 177
+spawn gem_red 568 113
+spawn gem_green 653 109
+spawn gem_cyan 507 127
+spawn gem_red 766 31
+spawn gem_green 716 51
+spawn gem_cyan 143 66
+spawn gem_green 584 180
+spawn gem_green 544 182
+spawn gem_cyan 95 111
+spawn gem_red 585 142
+spawn gem_red 56 151
+spawn gem_red 436 51
+spawn gem_cyan 302 24
+spawn gem_cyan 464 82
+spawn gem_cyan 713 189
+spawn gem_green 533 151
+spawn gem_cyan 22 161
+spawn gem_cyan 98 74
+spawn gem_green 461 138
+spawn gem_red 765 78
+spawn gem_cyan 398 151
+spawn gem_cyan 770 101
+spawn gem_green 245 18
+spawn gem_cyan 167 16
+spawn gem_green 455 166
+spawn gem_cyan 605 57
+spawn gem_red 741 71
+spawn gem_red 433 121
+spawn gem_green 475 101
+spawn gem_green 123 185
+spawn gem_red 452 116
+spawn gem_cyan 116 172
+spawn gem_cyan 310 163
+spawn gem_cyan 225 51
+spawn gem_cyan 691 51
+spawn gem_green 618 151
+spawn gem_green 754 112
+
+# Bats (25 total)
+spawn bat 204 49
+spawn bat 176 117
+spawn bat 120 101
+spawn bat 253 90
+spawn bat 78 79
+spawn bat 690 140
+spawn bat 104 26
+spawn bat 234 51
+spawn bat 651 135
+spawn bat 263 101
+spawn bat 355 27
+spawn bat 385 137
+spawn bat 450 98
+spawn bat 56 91
+spawn bat 95 107
+spawn bat 250 37
+spawn bat 602 52
+spawn bat 292 99
+spawn bat 565 27
+spawn bat 501 29
+spawn bat 406 40
+spawn bat 219 120
+spawn bat 377 60
+spawn bat 397 109
+spawn bat 379 13
