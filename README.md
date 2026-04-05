@@ -2,9 +2,11 @@
 
 A lightweight 2D ASCII / ANSI game engine written in C++20.
 
-Build games like Flappy Bird, Mario, and physics simulations — entirely inside the terminal.
+Build platformers,arcade games, or whatever honestly as long as the windows terminal manages to flush it.
 
-![demo](docs/demo.gif)
+![Recording 2026-04-05 184338](https://github.com/user-attachments/assets/b99186ed-f32c-40a8-b99f-2737fa7cc1e4)
+<img width="574" height="506" alt="image" src="https://github.com/user-attachments/assets/01727bb7-f359-4c34-897c-92eff3dc18c1" />
+
 
 ## Features
 
