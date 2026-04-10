@@ -73,10 +73,17 @@ public:
 
         Profiler& profiler = Profiler::getInstance();
 
+        float accumulator = 0;
+
         while (_running) {
             QueryPerformanceCounter(&currentTime);
             float dt = (float)(currentTime.QuadPart - lastTime.QuadPart) / freq.QuadPart;
             lastTime = currentTime;
+
+            // Clamp dt to avoid spiral of death after hitches (e.g. breakpoint, window drag)
+            if (dt > FIXED_DT * MAX_PHYSICS_STEPS) {
+                dt = FIXED_DT * MAX_PHYSICS_STEPS;
+            }
 
             profiler.beginFrame();
 
@@ -89,22 +96,27 @@ public:
             }
             profiler.recordInput(profiler.endSection());
 
-            // Update
+            // Variable-rate update (entity logic, animations, timers)
             profiler.beginSection();
             EntityManager::getInstance().update(dt);
-            // Physics step — runs after entity update so addForce() calls take effect
-            for (auto* e : EntityManager::getInstance().getEntities()) {
-                if (e->alive && e->physics) {
-                    e->physics->update(dt);
-                }
-            }
-            // Fire tile collision callbacks (after physics so Entity is fully visible)
-            for (auto* e : EntityManager::getInstance().getEntities()) {
-                if (e->alive && e->physics && !e->physics->getTileCollisions().empty()) {
-                    for (auto& tc : e->physics->getTileCollisions()) {
-                        e->onTileCollision(tc);
+
+            // Fixed-rate physics — accumulate real time, step in fixed increments
+            accumulator += dt;
+            while (accumulator >= FIXED_DT) {
+                for (auto* e : EntityManager::getInstance().getEntities()) {
+                    if (e->alive && e->physics) {
+                        e->physics->update(FIXED_DT);
                     }
                 }
+                // Fire tile collision callbacks after each physics step
+                for (auto* e : EntityManager::getInstance().getEntities()) {
+                    if (e->alive && e->physics && !e->physics->getTileCollisions().empty()) {
+                        for (auto& tc : e->physics->getTileCollisions()) {
+                            e->onTileCollision(tc);
+                        }
+                    }
+                }
+                accumulator -= FIXED_DT;
             }
             profiler.recordUpdate(profiler.endSection());
 

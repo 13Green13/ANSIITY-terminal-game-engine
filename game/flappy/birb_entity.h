@@ -2,8 +2,8 @@
 
 #include "../../engine/engine.h"
 
-constexpr int JUMPHEIGHT = 5;
-constexpr float BIRB_GRAVITY = 0.3f;
+constexpr float JUMP_VELOCITY = -150.0f;
+constexpr float BIRB_GRAVITY = 900.0f;
 
 class BirbEntity : public Entity {
     float _velocity = 0;
@@ -21,12 +21,11 @@ public:
         // Input
         auto& input = InputManager::getInstance();
         if (input.isKeyPressed(VK_SPACE)) {
-            _velocity -= JUMPHEIGHT;
+            _velocity = JUMP_VELOCITY;
         }
 
-        float scale = dt * TARGET_FPS;
-        _velocity += BIRB_GRAVITY * scale;
-        renderer->y += _velocity;
+        _velocity += BIRB_GRAVITY * dt;
+        renderer->y += _velocity * dt;
 
         if (renderer->y >= HEIGHT - renderer->height) {
             renderer->y = HEIGHT - renderer->height;
