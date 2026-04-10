@@ -126,7 +126,6 @@ public:
 
             profiler.endFrame((int)EntityManager::getInstance().getEntities().size());
 
-            Sleep(16);
         }
 
         profiler.writeSummary();
