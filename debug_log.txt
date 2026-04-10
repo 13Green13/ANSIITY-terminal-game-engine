@@ -1,0 +1,6 @@
+Requested: 560 x 120
+Buffer size: 560 x 120
+Window: (0,0)-(0,0) = 1 x 1
+Largest possible: 2560 x 456
+Font: Consolas, size 1 x 1
+Screen buffer handle: 00000000000000bc
