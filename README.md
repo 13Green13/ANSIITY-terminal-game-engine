@@ -4,7 +4,7 @@ A lightweight 2D ASCII / ANSI game engine written in C++20.
 
 Build games that run inside the terminal (as long as the windows terminal manages to flush it).
 
-![demo](docs/demo.gif)
+![demo](demo.gif)
 
 ## Features
 
