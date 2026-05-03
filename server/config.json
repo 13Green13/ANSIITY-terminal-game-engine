@@ -1,0 +1,118 @@
+{
+  "monsters": [
+    {
+      "name": "Goblin Warrior",
+      "sprite": "sprites/goblin.ansii",
+      "stats": { "health": 80, "attack": 12, "defense": 8, "magic": 4 },
+      "moves": [
+        { "name": "Rusty Blade", "type": "physical", "effect": "damage", "base_value": 15 },
+        { "name": "Dirty Kick", "type": "physical", "effect": "damage_debuff", "base_value": 8, "debuff_stat": "defense", "debuff_amount": 4, "debuff_turns": 2 },
+        { "name": "Frenzy", "type": "none", "effect": "buff", "buff_stat": "attack", "buff_amount": 5, "buff_turns": 2 },
+        { "name": "Headbutt", "type": "physical", "effect": "damage", "base_value": 25 }
+      ]
+    },
+    {
+      "name": "Giant Spider",
+      "sprite": "sprites/spider.ansii",
+      "stats": { "health": 90, "attack": 14, "defense": 6, "magic": 3 },
+      "moves": [
+        { "name": "Bite", "type": "physical", "effect": "damage", "base_value": 14 },
+        { "name": "Web Throw", "type": "physical", "effect": "damage_debuff", "base_value": 8, "debuff_stat": "defense", "debuff_amount": 4, "debuff_turns": 2 },
+        { "name": "Pounce", "type": "physical", "effect": "damage", "base_value": 28 },
+        { "name": "Skitter", "type": "none", "effect": "buff", "buff_stat": "defense", "buff_amount": 5, "buff_turns": 2 }
+      ]
+    },
+    {
+      "name": "Goblin Mage",
+      "sprite": "sprites/goblinMage.ansii",
+      "stats": { "health": 70, "attack": 6, "defense": 7, "magic": 16 },
+      "moves": [
+        { "name": "Firebolt", "type": "magic", "effect": "damage", "base_value": 16 },
+        { "name": "Arcane Surge", "type": "none", "effect": "buff", "buff_stat": "magic", "buff_amount": 6, "buff_turns": 2 },
+        { "name": "Mana Drain", "type": "magic", "effect": "damage_debuff", "base_value": 8, "debuff_stat": "magic", "debuff_amount": 4, "debuff_turns": 2 },
+        { "name": "Hex Shield", "type": "none", "effect": "buff", "buff_stat": "defense", "buff_amount": 5, "buff_turns": 2 }
+      ]
+    },
+    {
+      "name": "Witch",
+      "sprite": "sprites/witch.ansii",
+      "stats": { "health": 85, "attack": 5, "defense": 8, "magic": 18 },
+      "moves": [
+        { "name": "Shadow Bolt", "type": "magic", "effect": "damage", "base_value": 22 },
+        { "name": "Drain Life", "type": "magic", "effect": "damage_heal", "base_value": 12 },
+        { "name": "Curse", "type": "none", "effect": "debuff", "debuff_stat": "attack", "debuff_amount": 5, "debuff_turns": 2 },
+        { "name": "Dark Pact", "type": "none", "effect": "buff_self_damage", "buff_stat": "magic", "buff_amount": 8, "buff_turns": 2, "self_damage": 10 }
+      ]
+    },
+    {
+      "name": "Dragon",
+      "sprite": "sprites/dragon.ansii",
+      "stats": { "health": 150, "attack": 18, "defense": 14, "magic": 16 },
+      "moves": [
+        { "name": "Flame Breath", "type": "magic", "effect": "damage", "base_value": 24 },
+        { "name": "Claw Swipe", "type": "physical", "effect": "damage", "base_value": 18 },
+        { "name": "Intimidate", "type": "none", "effect": "debuff", "debuff_stat": "attack", "debuff_amount": 6, "debuff_turns": 2 },
+        { "name": "Dragon Scales", "type": "none", "effect": "buff", "buff_stat": "defense", "buff_amount": 7, "buff_turns": 2 }
+      ]
+    }
+  ],
+  "heroes": [
+    {
+      "name": "Knight",
+      "sprite": "sprites/knight.ansii",
+      "sprite_right": "sprites/knight_right.ansii",
+      "base_stats": { "health": 120, "attack": 12, "defense": 12, "magic": 5 },
+      "stat_growth": { "health": 18, "attack": 3, "defense": 3, "magic": 1 },
+      "xp_per_level": 100,
+      "moves": [
+        { "name": "Slash", "type": "physical", "effect": "damage", "base_value": 15 },
+        { "name": "Shield Up", "type": "none", "effect": "buff", "buff_stat": "defense", "buff_amount": 5, "buff_turns": 2 },
+        { "name": "Battle Cry", "type": "none", "effect": "buff", "buff_stat": "attack", "buff_amount": 5, "buff_turns": 2 },
+        { "name": "Second Wind", "type": "magic", "effect": "heal", "base_value": 20 }
+      ]
+    },
+    {
+      "name": "Mage",
+      "sprite": "sprites/mage.ansii",
+      "sprite_right": "sprites/mage_right.ansii",
+      "base_stats": { "health": 80, "attack": 5, "defense": 6, "magic": 16 },
+      "stat_growth": { "health": 10, "attack": 1, "defense": 2, "magic": 4 },
+      "xp_per_level": 100,
+      "moves": [
+        { "name": "Arcane Bolt", "type": "magic", "effect": "damage", "base_value": 18 },
+        { "name": "Frost Nova", "type": "magic", "effect": "damage_debuff", "base_value": 10, "debuff_stat": "attack", "debuff_amount": 4, "debuff_turns": 2 },
+        { "name": "Focus", "type": "none", "effect": "buff", "buff_stat": "magic", "buff_amount": 6, "buff_turns": 2 },
+        { "name": "Mana Shield", "type": "none", "effect": "buff", "buff_stat": "defense", "buff_amount": 6, "buff_turns": 2 }
+      ]
+    },
+    {
+      "name": "Priest",
+      "sprite": "sprites/priest.ansii",
+      "sprite_right": "sprites/priest_right.ansii",
+      "base_stats": { "health": 100, "attack": 6, "defense": 8, "magic": 14 },
+      "stat_growth": { "health": 14, "attack": 1, "defense": 3, "magic": 3 },
+      "xp_per_level": 100,
+      "moves": [
+        { "name": "Smite", "type": "magic", "effect": "damage", "base_value": 14 },
+        { "name": "Holy Light", "type": "magic", "effect": "heal", "base_value": 25 },
+        { "name": "Blessing", "type": "none", "effect": "buff", "buff_stat": "defense", "buff_amount": 4, "buff_turns": 3 },
+        { "name": "Weaken", "type": "none", "effect": "debuff", "debuff_stat": "attack", "debuff_amount": 5, "debuff_turns": 2 }
+      ]
+    },
+    {
+      "name": "Dwarf",
+      "sprite": "sprites/dwarf.ansii",
+      "sprite_right": "sprites/dwarf_right.ansii",
+      "base_stats": { "health": 110, "attack": 14, "defense": 10, "magic": 4 },
+      "stat_growth": { "health": 16, "attack": 4, "defense": 2, "magic": 1 },
+      "xp_per_level": 100,
+      "moves": [
+        { "name": "Axe Chop", "type": "physical", "effect": "damage", "base_value": 18 },
+        { "name": "Reckless Blow", "type": "physical", "effect": "damage", "base_value": 30 },
+        { "name": "Fortify", "type": "none", "effect": "buff", "buff_stat": "defense", "buff_amount": 6, "buff_turns": 2 },
+        { "name": "War Stomp", "type": "physical", "effect": "damage_debuff", "base_value": 10, "debuff_stat": "defense", "debuff_amount": 5, "debuff_turns": 2 }
+      ]
+    }
+  ],
+  "xp_rewards": [20, 35, 50, 70, 100]
+}
