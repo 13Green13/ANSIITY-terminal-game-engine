@@ -6,6 +6,10 @@ set DIST=dist\ANSIITY-RPG
 
 echo Packaging ANSIITY RPG...
 
+:: Build with static GCC runtime (no libstdc++ DLL dependency)
+echo Compiling rpg.exe...
+g++ -O2 -static-libgcc -static-libstdc++ -o build\rpg.exe main_rpg.cpp -std=c++20 -I. -lwinhttp
+
 :: Clean previous package
 if exist %DIST% rmdir /s /q %DIST%
 mkdir %DIST%
