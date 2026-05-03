@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANSIITY RPG — Config Editor</title>
+<style>
+  :root { --bg: #1e1e2e; --surface: #282840; --border: #444; --text: #cdd6f4;
+           --accent: #89b4fa; --red: #f38ba8; --green: #a6e3a1; --yellow: #f9e2af;
+           --purple: #cba6f7; --dim: #6c7086; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg);
+         color: var(--text); padding: 20px; max-width: 1100px; margin: 0 auto; }
+  h1 { color: var(--accent); margin-bottom: 4px; font-size: 1.6em; }
+  h2 { color: var(--purple); margin: 24px 0 12px; font-size: 1.2em;
+       border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .subtitle { color: var(--dim); margin-bottom: 20px; font-size: 0.9em; }
+  .toolbar { display: flex; gap: 10px; margin-bottom: 20px; }
+  button { background: var(--accent); color: #1e1e2e; border: none; padding: 8px 18px;
+           border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9em; }
+  button:hover { filter: brightness(1.1); }
+  button.danger { background: var(--red); }
+  button.secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+          padding: 16px; margin-bottom: 12px; }
+  .card-header { display: flex; justify-content: space-between; align-items: center;
+                 cursor: pointer; user-select: none; }
+  .card-header h3 { color: var(--yellow); font-size: 1em; }
+  .card-header .toggle { color: var(--dim); font-size: 1.2em; }
+  .card-body { margin-top: 12px; }
+  .card.collapsed .card-body { display: none; }
+  .card.collapsed .toggle::after { content: '▸'; }
+  .card:not(.collapsed) .toggle::after { content: '▾'; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .field { display: flex; flex-direction: column; gap: 3px; }
+  .field label { font-size: 0.75em; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .field input, .field select { background: var(--bg); color: var(--text); border: 1px solid var(--border);
+           border-radius: 4px; padding: 6px 10px; font-size: 0.9em; width: 100%; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+  .field.narrow { width: 80px; }
+  .field.medium { width: 140px; }
+  .field.wide { width: 220px; }
+  .move-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+               padding: 10px; margin-bottom: 8px; }
+  .move-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .move-header span { color: var(--green); font-weight: 600; font-size: 0.9em; }
+  .move-fields { display: none; }
+  .move-card.expanded .move-fields { display: block; }
+  .conditional { display: none; }
+  .conditional.show { display: flex; }
+  .section-actions { margin: 8px 0; }
+  #toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px;
+           font-weight: 600; display: none; z-index: 100; }
+  #toast.success { background: var(--green); color: #1e1e2e; display: block; }
+  #toast.error { background: var(--red); color: #1e1e2e; display: block; }
+  .xp-list { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .xp-list input { width: 70px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75em;
+           font-weight: 600; }
+  .badge.monster { background: var(--red); color: #1e1e2e; }
+  .badge.hero { background: var(--green); color: #1e1e2e; }
+</style>
+</head>
+<body>
+
+<h1>ANSIITY RPG Config Editor</h1>
+<p class="subtitle">Edit monsters, heroes, and XP rewards. Changes are saved to <code>config.json</code> and take effect on next game run.</p>
+
+<div class="toolbar">
+  <button onclick="saveConfig()">Save Config</button>
+  <button class="secondary" onclick="loadConfig()">Reload</button>
+</div>
+
+<div id="toast"></div>
+
+<!-- XP Rewards -->
+<h2>XP Rewards</h2>
+<div class="card">
+  <div class="card-body">
+    <p style="color:var(--dim);font-size:0.85em;margin-bottom:8px;">XP granted per monster defeated (in order).</p>
+    <div class="xp-list" id="xpList"></div>
+    <div class="section-actions">
+      <button class="secondary" onclick="addXP()">+ Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Monsters -->
+<h2>Monsters <span class="badge monster" id="monsterCount"></span></h2>
+<div id="monsterList"></div>
+<div class="section-actions">
+  <button class="secondary" onclick="addMonster()">+ Add Monster</button>
+</div>
+
+<!-- Heroes -->
+<h2>Heroes <span class="badge hero" id="heroCount"></span></h2>
+<div id="heroList"></div>
+<div class="section-actions">
+  <button class="secondary" onclick="addHero()">+ Add Hero</button>
+</div>
+
+<script>
+let config = { monsters: [], heroes: [], xp_rewards: [] };
+
+const EFFECTS = ['damage','heal','damage_heal','damage_debuff','buff','debuff','buff_self_damage'];
+const TYPES = ['physical','magic','none'];
+const STATS = ['health','attack','defense','magic'];
+
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type;
+  setTimeout(() => t.className = '', 2500);
+}
+
+async function loadConfig() {
+  try {
+    const r = await fetch('/api/config');
+    config = await r.json();
+    render();
+    toast('Config loaded', 'success');
+  } catch(e) { toast('Failed to load: ' + e.message, 'error'); }
+}
+
+async function saveConfig() {
+  gatherAll();
+  try {
+    const r = await fetch('/api/config', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(config)
+    });
+    const j = await r.json();
+    if (j.ok) toast('Saved!', 'success');
+    else toast('Error: ' + (j.error||'unknown'), 'error');
+  } catch(e) { toast('Save failed: ' + e.message, 'error'); }
+}
+
+// ─── Gather form data back into config ─────────────────────────────
+
+function gatherAll() {
+  // XP
+  config.xp_rewards = [];
+  document.querySelectorAll('#xpList input').forEach(inp => {
+    config.xp_rewards.push(parseInt(inp.value) || 0);
+  });
+
+  // Monsters
+  config.monsters = [];
+  document.querySelectorAll('.monster-card').forEach(card => {
+    const m = {};
+    m.name = card.querySelector('[data-f="name"]').value;
+    m.sprite = card.querySelector('[data-f="sprite"]').value;
+    m.stats = {
+      health: int(card.querySelector('[data-f="health"]').value),
+      attack: int(card.querySelector('[data-f="attack"]').value),
+      defense: int(card.querySelector('[data-f="defense"]').value),
+      magic: int(card.querySelector('[data-f="magic"]').value),
+    };
+    m.moves = gatherMoves(card);
+    config.monsters.push(m);
+  });
+
+  // Heroes
+  config.heroes = [];
+  document.querySelectorAll('.hero-card').forEach(card => {
+    const h = {};
+    h.name = card.querySelector('[data-f="name"]').value;
+    h.sprite = card.querySelector('[data-f="sprite"]').value;
+    h.sprite_right = card.querySelector('[data-f="sprite_right"]').value;
+    h.base_stats = {
+      health: int(card.querySelector('[data-f="b_health"]').value),
+      attack: int(card.querySelector('[data-f="b_attack"]').value),
+      defense: int(card.querySelector('[data-f="b_defense"]').value),
+      magic: int(card.querySelector('[data-f="b_magic"]').value),
+    };
+    h.stat_growth = {
+      health: int(card.querySelector('[data-f="g_health"]').value),
+      attack: int(card.querySelector('[data-f="g_attack"]').value),
+      defense: int(card.querySelector('[data-f="g_defense"]').value),
+      magic: int(card.querySelector('[data-f="g_magic"]').value),
+    };
+    h.xp_per_level = int(card.querySelector('[data-f="xp_per_level"]').value);
+    h.moves = gatherMoves(card);
+    config.heroes.push(h);
+  });
+}
+
+function gatherMoves(card) {
+  const moves = [];
+  card.querySelectorAll('.move-card').forEach(mc => {
+    const mv = {};
+    mv.name = mc.querySelector('[data-f="m_name"]').value;
+    mv.type = mc.querySelector('[data-f="m_type"]').value;
+    mv.effect = mc.querySelector('[data-f="m_effect"]').value;
+    const bv = mc.querySelector('[data-f="m_base_value"]');
+    if (bv && bv.value) mv.base_value = int(bv.value);
+    // Buff fields
+    const bs = mc.querySelector('[data-f="m_buff_stat"]');
+    if (bs && bs.value && needsBuff(mv.effect)) {
+      mv.buff_stat = bs.value;
+      mv.buff_amount = int(mc.querySelector('[data-f="m_buff_amount"]').value);
+      mv.buff_turns = int(mc.querySelector('[data-f="m_buff_turns"]').value);
+    }
+    // Debuff fields
+    const ds = mc.querySelector('[data-f="m_debuff_stat"]');
+    if (ds && ds.value && needsDebuff(mv.effect)) {
+      mv.debuff_stat = ds.value;
+      mv.debuff_amount = int(mc.querySelector('[data-f="m_debuff_amount"]').value);
+      mv.debuff_turns = int(mc.querySelector('[data-f="m_debuff_turns"]').value);
+    }
+    // Self damage
+    const sd = mc.querySelector('[data-f="m_self_damage"]');
+    if (sd && sd.value && mv.effect === 'buff_self_damage') {
+      mv.self_damage = int(sd.value);
+    }
+    moves.push(mv);
+  });
+  return moves;
+}
+
+function int(v) { return parseInt(v) || 0; }
+function needsBuff(e) { return ['buff','buff_self_damage'].includes(e); }
+function needsDebuff(e) { return ['debuff','damage_debuff'].includes(e); }
+function hasBaseValue(e) { return ['damage','heal','damage_heal','damage_debuff','buff_self_damage'].includes(e); }
+
+// ─── Render ─────────────────────────────────────────────────────────
+
+function render() {
+  renderXP();
+  renderMonsters();
+  renderHeroes();
+}
+
+function renderXP() {
+  const el = document.getElementById('xpList');
+  el.innerHTML = config.xp_rewards.map((v,i) =>
+    `<div class="field narrow"><label>#${i+1}</label><input type="number" value="${v}"></div>`
+  ).join('') ;
+}
+
+function addXP() {
+  gatherAll();
+  config.xp_rewards.push(0);
+  renderXP();
+}
+
+function renderMonsters() {
+  document.getElementById('monsterCount').textContent = config.monsters.length;
+  const el = document.getElementById('monsterList');
+  el.innerHTML = config.monsters.map((m,i) => monsterCard(m,i)).join('');
+  el.querySelectorAll('.card-header').forEach(h => h.addEventListener('click', toggleCard));
+}
+
+function renderHeroes() {
+  document.getElementById('heroCount').textContent = config.heroes.length;
+  const el = document.getElementById('heroList');
+  el.innerHTML = config.heroes.map((h,i) => heroCard(h,i)).join('');
+  el.querySelectorAll('.card-header').forEach(h => h.addEventListener('click', toggleCard));
+}
+
+function toggleCard(e) {
+  e.currentTarget.closest('.card').classList.toggle('collapsed');
+}
+
+function monsterCard(m, idx) {
+  return `<div class="card collapsed monster-card">
+    <div class="card-header">
+      <h3>${m.name || 'New Monster'}</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="danger" onclick="event.stopPropagation();removeMonster(${idx})" style="padding:4px 10px;font-size:0.8em">✕</button>
+        <span class="toggle"></span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="field wide"><label>Name</label><input data-f="name" value="${esc(m.name)}"></div>
+        <div class="field wide"><label>Sprite</label><input data-f="sprite" value="${esc(m.sprite)}"></div>
+      </div>
+      <div class="row">
+        <div class="field narrow"><label>HP</label><input type="number" data-f="health" value="${m.stats.health}"></div>
+        <div class="field narrow"><label>ATK</label><input type="number" data-f="attack" value="${m.stats.attack}"></div>
+        <div class="field narrow"><label>DEF</label><input type="number" data-f="defense" value="${m.stats.defense}"></div>
+        <div class="field narrow"><label>MAG</label><input type="number" data-f="magic" value="${m.stats.magic}"></div>
+      </div>
+      <h4 style="color:var(--dim);margin:8px 0 4px;font-size:0.85em">Moves</h4>
+      ${m.moves.map((mv,mi) => moveCard(mv, mi)).join('')}
+      <button class="secondary" onclick="addMoveToCard(this, ${idx}, 'monster')" style="font-size:0.8em;padding:4px 12px">+ Move</button>
+    </div>
+  </div>`;
+}
+
+function heroCard(h, idx) {
+  return `<div class="card collapsed hero-card">
+    <div class="card-header">
+      <h3>${h.name || 'New Hero'}</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="danger" onclick="event.stopPropagation();removeHero(${idx})" style="padding:4px 10px;font-size:0.8em">✕</button>
+        <span class="toggle"></span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="field wide"><label>Name</label><input data-f="name" value="${esc(h.name)}"></div>
+        <div class="field wide"><label>Sprite</label><input data-f="sprite" value="${esc(h.sprite)}"></div>
+        <div class="field wide"><label>Sprite Right</label><input data-f="sprite_right" value="${esc(h.sprite_right)}"></div>
+      </div>
+      <div class="row">
+        <div class="field narrow"><label>XP/Lvl</label><input type="number" data-f="xp_per_level" value="${h.xp_per_level}"></div>
+      </div>
+      <p style="color:var(--dim);font-size:0.8em;margin:8px 0 2px">Base Stats</p>
+      <div class="row">
+        <div class="field narrow"><label>HP</label><input type="number" data-f="b_health" value="${h.base_stats.health}"></div>
+        <div class="field narrow"><label>ATK</label><input type="number" data-f="b_attack" value="${h.base_stats.attack}"></div>
+        <div class="field narrow"><label>DEF</label><input type="number" data-f="b_defense" value="${h.base_stats.defense}"></div>
+        <div class="field narrow"><label>MAG</label><input type="number" data-f="b_magic" value="${h.base_stats.magic}"></div>
+      </div>
+      <p style="color:var(--dim);font-size:0.8em;margin:8px 0 2px">Growth per Level</p>
+      <div class="row">
+        <div class="field narrow"><label>HP</label><input type="number" data-f="g_health" value="${h.stat_growth.health}"></div>
+        <div class="field narrow"><label>ATK</label><input type="number" data-f="g_attack" value="${h.stat_growth.attack}"></div>
+        <div class="field narrow"><label>DEF</label><input type="number" data-f="g_defense" value="${h.stat_growth.defense}"></div>
+        <div class="field narrow"><label>MAG</label><input type="number" data-f="g_magic" value="${h.stat_growth.magic}"></div>
+      </div>
+      <h4 style="color:var(--dim);margin:8px 0 4px;font-size:0.85em">Starting Moves</h4>
+      ${h.moves.map((mv,mi) => moveCard(mv, mi)).join('')}
+      <button class="secondary" onclick="addMoveToCard(this, ${idx}, 'hero')" style="font-size:0.8em;padding:4px 12px">+ Move</button>
+    </div>
+  </div>`;
+}
+
+function moveCard(mv, idx) {
+  const showBV = hasBaseValue(mv.effect);
+  const showBuff = needsBuff(mv.effect);
+  const showDebuff = needsDebuff(mv.effect);
+  const showSD = mv.effect === 'buff_self_damage';
+  return `<div class="move-card expanded">
+    <div class="move-header" onclick="this.parentElement.classList.toggle('expanded')">
+      <span>${mv.name || 'New Move'}</span>
+      <button class="danger" onclick="event.stopPropagation();this.closest('.move-card').remove()" style="padding:2px 8px;font-size:0.8em">✕</button>
+    </div>
+    <div class="move-fields">
+      <div class="row">
+        <div class="field medium"><label>Name</label><input data-f="m_name" value="${esc(mv.name)}"></div>
+        <div class="field medium"><label>Type</label><select data-f="m_type">${opts(TYPES, mv.type)}</select></div>
+        <div class="field medium"><label>Effect</label><select data-f="m_effect" onchange="updateMoveVis(this)">${opts(EFFECTS, mv.effect)}</select></div>
+      </div>
+      <div class="row">
+        <div class="field narrow mv-bv ${showBV?'show':''}"><label>Base Val</label><input type="number" data-f="m_base_value" value="${mv.base_value||0}"></div>
+        <div class="field narrow mv-sd ${showSD?'show':''}"><label>Self Dmg</label><input type="number" data-f="m_self_damage" value="${mv.self_damage||0}"></div>
+      </div>
+      <div class="row mv-buff ${showBuff?'show':''}">
+        <div class="field medium"><label>Buff Stat</label><select data-f="m_buff_stat">${opts(STATS, mv.buff_stat||'')}</select></div>
+        <div class="field narrow"><label>Amount</label><input type="number" data-f="m_buff_amount" value="${mv.buff_amount||0}"></div>
+        <div class="field narrow"><label>Turns</label><input type="number" data-f="m_buff_turns" value="${mv.buff_turns||0}"></div>
+      </div>
+      <div class="row mv-debuff ${showDebuff?'show':''}">
+        <div class="field medium"><label>Debuff Stat</label><select data-f="m_debuff_stat">${opts(STATS, mv.debuff_stat||'')}</select></div>
+        <div class="field narrow"><label>Amount</label><input type="number" data-f="m_debuff_amount" value="${mv.debuff_amount||0}"></div>
+        <div class="field narrow"><label>Turns</label><input type="number" data-f="m_debuff_turns" value="${mv.debuff_turns||0}"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function updateMoveVis(sel) {
+  const mc = sel.closest('.move-card');
+  const ef = sel.value;
+  mc.querySelector('.mv-bv').classList.toggle('show', hasBaseValue(ef));
+  mc.querySelector('.mv-sd').classList.toggle('show', ef === 'buff_self_damage');
+  mc.querySelector('.mv-buff').classList.toggle('show', needsBuff(ef));
+  mc.querySelector('.mv-debuff').classList.toggle('show', needsDebuff(ef));
+}
+
+function opts(arr, selected) {
+  return arr.map(v => `<option value="${v}"${v===selected?' selected':''}>${v}</option>`).join('');
+}
+
+function esc(s) { return (s||'').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+// ─── Add / Remove ──────────────────────────────────────────────────
+
+function addMonster() {
+  gatherAll();
+  config.monsters.push({
+    name: 'New Monster', sprite: 'sprites/', stats: {health:50,attack:10,defense:8,magic:5},
+    moves: [{name:'Attack',type:'physical',effect:'damage',base_value:10}]
+  });
+  renderMonsters();
+}
+function removeMonster(i) { gatherAll(); config.monsters.splice(i,1); renderMonsters(); }
+
+function addHero() {
+  gatherAll();
+  config.heroes.push({
+    name: 'New Hero', sprite: 'sprites/', sprite_right: 'sprites/',
+    base_stats: {health:100,attack:10,defense:10,magic:10},
+    stat_growth: {health:10,attack:2,defense:2,magic:2}, xp_per_level: 100,
+    moves: [{name:'Attack',type:'physical',effect:'damage',base_value:10}]
+  });
+  renderHeroes();
+}
+function removeHero(i) { gatherAll(); config.heroes.splice(i,1); renderHeroes(); }
+
+function addMoveToCard(btn, idx, kind) {
+  gatherAll();
+  const list = kind === 'monster' ? config.monsters : config.heroes;
+  list[idx].moves.push({name:'New Move',type:'physical',effect:'damage',base_value:10});
+  if (kind === 'monster') renderMonsters(); else renderHeroes();
+}
+
+// ─── Init ───────────────────────────────────────────────────────────
+loadConfig();
+</script>
+</body>
+</html>

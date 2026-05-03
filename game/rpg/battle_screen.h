@@ -159,14 +159,33 @@ private:
         snprintf(turnBuf, sizeof(turnBuf), "Turn %d", _battle.turnNumber);
         addUI(new TextEntity((float)(WIDTH / 2 - 4), panelY - 4, turnBuf, 90));
 
+        // ── Separator line between scene and UI ──
+        std::string sepLine(WIDTH - 4, '-');
+        addUI(new TextEntity(2, panelY - 3, sepLine, 90));
+
         // Move selection
         if (_acceptingInput && !_battle.battleOver) {
             addUI(new TextEntity(5, panelY - 2, "=== YOUR TURN - Select a move ===", 96));
+
+            // Draw move buttons with highlight box on selected
             for (int i = 0; i < 4; i++) {
                 char label[64];
-                snprintf(label, sizeof(label), "[%d] %s", i + 1, _run.equippedMoves[i].name.c_str());
-                int color = (i == _selected) ? 93 : 37;
-                addUI(new TextEntity(5 + (float)(i * 30), panelY, label, color));
+                snprintf(label, sizeof(label), " [%d] %s ", i + 1, _run.equippedMoves[i].name.c_str());
+                int labelLen = (int)strlen(label);
+                float mx = 3 + (float)(i * 30);
+
+                if (i == _selected) {
+                    // Draw highlight box around selected move
+                    std::string top = "+" + std::string(labelLen, '-') + "+";
+                    std::string bot = "+" + std::string(labelLen, '-') + "+";
+                    addUI(new TextEntity(mx, panelY - 1, top, 93));
+                    addUI(new TextEntity(mx, panelY, "|", 93));
+                    addUI(new TextEntity(mx + 1, panelY, label, 93));
+                    addUI(new TextEntity(mx + 1 + (float)labelLen, panelY, "|", 93));
+                    addUI(new TextEntity(mx, panelY + 1, bot, 93));
+                } else {
+                    addUI(new TextEntity(mx + 1, panelY, label, 37));
+                }
             }
 
             // Move info for currently highlighted move (right side)
@@ -178,16 +197,16 @@ private:
 
         // Battle log
         if (!_battle.lastHeroMove.empty()) {
-            addUI(new TextEntity(5, panelY + 3,
+            addUI(new TextEntity(5, panelY + 4,
                 "You: " + _battle.lastHeroMove + " - " + _battle.lastHeroResult, 32));
         }
         if (!_battle.lastMonsterMove.empty()) {
-            addUI(new TextEntity(5, panelY + 4,
+            addUI(new TextEntity(5, panelY + 5,
                 monster.name + ": " + _battle.lastMonsterMove + " - " + _battle.lastMonsterResult, 31));
         }
 
         // Buff indicators
-        float buffY = panelY + 6;
+        float buffY = panelY + 7;
         if (!_battle.heroBuffs.empty()) {
             std::string bufStr = "Your buffs: ";
             for (auto& b : _battle.heroBuffs) {

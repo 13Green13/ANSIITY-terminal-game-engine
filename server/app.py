@@ -1,11 +1,19 @@
 from flask import Flask, request, jsonify, send_from_directory
 import json
 import os
+import sys
 import random
 
 app = Flask(__name__)
 
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+# When bundled with PyInstaller, resolve paths relative to the exe location
+# In dev, resolve relative to this script's directory
+if getattr(sys, 'frozen', False):
+    _BASE_DIR = os.path.dirname(sys.executable)
+else:
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+CONFIG_PATH = os.path.join(_BASE_DIR, "config.json")
 
 
 def load_config():
@@ -22,7 +30,7 @@ def save_config(data):
 
 @app.route("/", methods=["GET"])
 def editor_page():
-    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), "editor.html")
+    return send_from_directory(_BASE_DIR, "editor.html")
 
 
 @app.route("/api/config", methods=["GET"])
@@ -100,4 +108,4 @@ def get_move():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=False)
