@@ -6,6 +6,8 @@ A turn-based RPG built on the ANSIITY terminal game engine. The player controls 
 
 Double-click `play.bat`. This starts the backend server and launches the game automatically. No installs needed.
 
+### **Make sure to full-screen the terminal**
+
 To edit game configuration (monsters, heroes, stats, moves), run `rpg_server.exe` separately and open `http://127.0.0.1:5000/` in a browser.
 
 ### Controls
