@@ -1,12 +1,19 @@
 @echo off
 title ANSIITY RPG
+
+:: Ensure working directory is the folder containing this bat file
+cd /d "%~dp0"
+
 echo ==============================
 echo   ANSIITY RPG - Starting...
 echo ==============================
 echo.
 
-:: Start the server in background
-start "" /B rpg_server.exe
+:: Kill any stale server from a previous run
+taskkill /f /im rpg_server.exe >nul 2>&1
+
+:: Start the server in a separate hidden window (must not share console with game)
+start "RPG Server" /MIN rpg_server.exe
 
 :: Wait for server to be ready
 echo Waiting for server...
@@ -33,6 +40,11 @@ echo.
 
 :: Launch game (blocks until game exits)
 rpg.exe
+if errorlevel 1 (
+    echo.
+    echo ERROR: rpg.exe crashed with exit code %errorlevel%
+    pause
+)
 
 :: Kill server when game exits
 echo.

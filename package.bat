@@ -6,7 +6,7 @@ set DIST=dist\ANSIITY-RPG
 
 echo Packaging ANSIITY RPG...
 
-:: Build with static GCC runtime (no libstdc++ DLL dependency)
+:: Build with static GCC runtime (no libstdc++ dependency)
 echo Compiling rpg.exe...
 g++ -O2 -static-libgcc -static-libstdc++ -o build\rpg.exe main_rpg.cpp -std=c++20 -I. -lwinhttp
 
@@ -18,6 +18,10 @@ mkdir %DIST%\sprites
 :: Copy executables
 copy build\rpg.exe %DIST%\ >nul
 copy dist\rpg_server.exe %DIST%\ >nul
+
+:: Copy MinGW runtime DLL (libwinpthread)
+for /f "tokens=*" %%i in ('where g++') do set MINGW_BIN=%%~dpi
+copy "%MINGW_BIN%libwinpthread-1.dll" %DIST%\ >nul
 
 :: Copy launcher
 copy dist\play.bat %DIST%\ >nul
